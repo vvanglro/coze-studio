@@ -27,34 +27,16 @@ import (
 	"github.com/coze-dev/coze-studio/backend/pkg/sonic"
 )
 
-var pythonCode = `
-import asyncio
-import json
-import sys
-
-class Args:
-    def __init__(self, params):
-        self.params = params
-
-class Output(dict):
-    pass
-
-%s
-
-try:
-    result = asyncio.run(main( Args(json.loads(sys.argv[1]))))
-    print(json.dumps(result))
-except Exception as  e:
-    print(f"{type(e).__name__}: {str(e)}", file=sys.stderr)
-    sys.exit(1)
-
-`
-
 func NewRunner() coderunner.Runner {
-	return &runner{}
+	return &runner{
+		pyPath: goutil.GetPython3Path(),
+		scriptPath: goutil.GetPythonFilePath("python_script.py"),
+	}
 }
 
-type runner struct{}
+type runner struct{
+	pyPath, scriptPath string
+}
 
 func (r *runner) Run(ctx context.Context, request *coderunner.RunRequest) (*coderunner.RunResponse, error) {
 	var (
@@ -75,7 +57,7 @@ func (r *runner) Run(ctx context.Context, request *coderunner.RunRequest) (*code
 
 func (r *runner) pythonCmdRun(_ context.Context, code string, params map[string]any) (map[string]any, error) {
 	bs, _ := sonic.Marshal(params)
-	cmd := exec.Command(goutil.GetPython3Path(), "-c", fmt.Sprintf(pythonCode, code), string(bs)) // ignore_security_alert RCE
+	cmd := exec.Command(r.pyPath, r.scriptPath, code, string(bs))
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	cmd.Stdout = stdout
