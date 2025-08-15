@@ -4,19 +4,30 @@ import os
 import asyncio
 import time
 import random
+import importlib
+from importlib.metadata import distributions
+
 try:
     from RestrictedPython import safe_builtins, limited_builtins, utility_builtins
 except ModuleNotFoundError:
-    print("RestrictedPython module required, please run pip install RestrictedPython",file=sys.stderr)
+    print("RestrictedPython module required, please run pip install RestrictedPython", file=sys.stderr)
     sys.exit(1)
 
 custom_builtins = safe_builtins.copy()
-
 custom_builtins['__import__'] = __import__
 custom_builtins['asyncio'] = asyncio
 custom_builtins['json'] = json
 custom_builtins['time'] = time
 custom_builtins['random'] = random
+
+# Automatically inject installed third-party libraries into the sandbox.
+for dist in distributions():
+    name = dist.metadata.get("Name")
+    if name:
+        try:
+            custom_builtins[name] = importlib.import_module(name)
+        except ModuleNotFoundError:
+            pass
 
 restricted_globals = {
     '__builtins__': custom_builtins,
@@ -25,15 +36,13 @@ restricted_globals = {
     '__name__': '__main__',
     'dict': dict,
     'list': list,
-    'print': print,
     'set': set,
-
+    'print': print,
 }
 
 class Args:
     def __init__(self, params):
         self.params = params
-
 
 DefaultCode = """
 class Args:
@@ -42,7 +51,6 @@ class Args:
 class Output(dict):
     pass
 """
-
 
 async def run_main(app_code, params):
     try:
@@ -56,7 +64,7 @@ async def run_main(app_code, params):
         sys.exit(1)
     return ret
 
-
-code = sys.argv[1]
-result = asyncio.run(run_main(code, params=json.loads(sys.argv[2])))
-print(json.dumps(result))
+if __name__ == "__main__":
+    code = sys.argv[1]
+    result = asyncio.run(run_main(code, params=json.loads(sys.argv[2])))
+    print(json.dumps(result))
