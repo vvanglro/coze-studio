@@ -27,14 +27,15 @@ WORKDIR /app
 # bind-tools for nslookup etc., file for debugging file types
 RUN apk add --no-cache pax-utils python3 python3-dev bind-tools file deno curl
 
-# Install Python build dependencies, create venv, install packages, then remove build deps
+COPY docker/requirements.txt /app/requirements.txt
+
+# Install Python build dependencies, create venv, install packages from requirements.txt, then remove build deps
 RUN apk add --no-cache --virtual .python-build-deps build-base py3-pip git && \
     python3 -m venv --copies --upgrade-deps /app/.venv && \
     # Activate venv and install packages
     . /app/.venv/bin/activate && \
-    # If you want to use other third-party libraries, you can install them here.
-    pip install urllib3==1.26.16 && \
-    pip install --no-cache-dir h11==0.16.0 httpx==0.28.1 pillow==11.2.1 pdfplumber==0.11.7 python-docx==1.2.0 numpy==2.3.1 && \
+    # If you want to use other third-party libraries, you can add in requirements.txt.
+    pip install --no-cache-dir -r /app/requirements.txt && \
     # Deactivate (optional, as RUN is a new shell)
     # deactivate && \
     # Remove build dependencies
@@ -48,6 +49,7 @@ COPY --from=builder /app/opencoze /app/opencoze
 COPY backend/infra/impl/document/parser/builtin/parse_pdf.py /app/parse_pdf.py
 COPY backend/infra/impl/document/parser/builtin/parse_docx.py /app/parse_docx.py
 COPY backend/infra/impl/coderunner/script/sandbox.py /app/sandbox.py
+COPY backend/infra/impl/coderunner/script/python_script.py /app/python_script.py
 
 
 # Copy static resources
